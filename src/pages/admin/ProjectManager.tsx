@@ -24,6 +24,7 @@ interface ProjectForm {
   category: string
   description: string
   is_featured: boolean
+  thumbnail_url: string
 }
 
 export default function ProjectManager() {
@@ -36,6 +37,8 @@ export default function ProjectManager() {
   const [editingProject, setEditingProject] = useState<DBProject | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  const [uploadingThumb, setUploadingThumb] = useState(false)
 
   const {
     register,
@@ -84,29 +87,46 @@ export default function ProjectManager() {
   const openModal = (project?: DBProject) => {
     if (project) {
       setEditingProject(project)
+      setThumbnailPreview(project.thumbnail_url)
       reset({
         title: project.title,
         slug: project.slug,
         category: project.category,
         description: project.description || '',
         is_featured: project.is_featured,
+        thumbnail_url: project.thumbnail_url || '',
       })
     } else {
       setEditingProject(null)
+      setThumbnailPreview(null)
       reset({
         title: '',
         slug: '',
         category: '',
         description: '',
         is_featured: false,
+        thumbnail_url: '',
       })
     }
     setIsModalOpen(true)
   }
 
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingThumb(true)
+    const url = await uploadImage(file, 'project-images')
+    setUploadingThumb(false)
+    if (url) {
+      setThumbnailPreview(url)
+      setValue('thumbnail_url', url)
+    }
+  }
+
   const closeModal = () => {
     setIsModalOpen(false)
     setEditingProject(null)
+    setThumbnailPreview(null)
     reset()
     // Clear URL params
     navigate('/admin/projects', { replace: true })
@@ -116,11 +136,14 @@ export default function ProjectManager() {
     setIsSubmitting(true)
     try {
       if (editingProject) {
-        await updateProject(editingProject.id, data)
+        await updateProject(editingProject.id, {
+          ...data,
+          thumbnail_url: data.thumbnail_url || null,
+        })
       } else {
         await createProject({
           ...data,
-          thumbnail_url: null,
+          thumbnail_url: data.thumbnail_url || null,
           case_study: null,
           order_index: projects.length + 1,
         })
@@ -328,6 +351,40 @@ export default function ProjectManager() {
               className="w-full px-4 py-3 bg-gray-50 dark:bg-dark-bg border border-light-border dark:border-dark-border rounded-xl focus:ring-2 focus:ring-accent resize-none"
               placeholder="Brief description of the project"
             />
+          </div>
+
+          {/* Thumbnail Upload */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Thumbnail Image
+            </label>
+            <div className="flex items-start gap-4">
+              <div className="w-32 h-24 bg-gray-100 dark:bg-dark-border rounded-lg overflow-hidden flex items-center justify-center">
+                {thumbnailPreview ? (
+                  <img src={thumbnailPreview} alt="Thumbnail" className="w-full h-full object-cover" />
+                ) : (
+                  <Upload className="w-8 h-8 text-gray-400" />
+                )}
+              </div>
+              <div className="flex-1">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleThumbnailUpload}
+                  className="hidden"
+                  id="thumbnail-upload"
+                />
+                <label
+                  htmlFor="thumbnail-upload"
+                  className="inline-flex items-center px-4 py-2 bg-gray-100 dark:bg-dark-border text-gray-700 dark:text-gray-300 rounded-lg cursor-pointer hover:bg-gray-200 dark:hover:bg-dark-border/70 transition-colors"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  {uploadingThumb ? 'Uploading...' : 'Upload Image'}
+                </label>
+                <input type="hidden" {...register('thumbnail_url')} />
+                <p className="text-xs text-gray-500 mt-2">Recommended: 800x600px, JPG/PNG</p>
+              </div>
+            </div>
           </div>
 
           {/* Featured */}

@@ -1,11 +1,10 @@
-import { useState, useRef } from 'react'
+import { useRef } from 'react'
 import { motion, useInView, AnimatePresence } from 'framer-motion'
 import { Eye, ArrowRight } from 'lucide-react'
-import { portfolioProjects, PortfolioProject } from '@/data/content'
-import PDFViewer from '../ui/PDFViewer'
+import { useProjects } from '@/hooks/useSupabase'
 
 export default function Projects() {
-  const [selectedProject, setSelectedProject] = useState<PortfolioProject | null>(null)
+  const { projects, loading } = useProjects()
   const ref = useRef<HTMLDivElement>(null)
   const isInView = useInView(ref, { once: true, margin: '-100px' })
 
@@ -41,7 +40,11 @@ export default function Projects() {
           </div>
 
           {/* Projects Grid */}
-          {portfolioProjects.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-16">
+              <div className="w-12 h-12 border-4 border-accent/30 border-t-accent rounded-full animate-spin mx-auto" />
+            </div>
+          ) : projects.length === 0 ? (
             <motion.div
               className="text-center py-16 bg-light-card dark:bg-dark-card rounded-2xl border border-light-border dark:border-dark-border"
               initial={{ opacity: 0 }}
@@ -53,31 +56,29 @@ export default function Projects() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               <AnimatePresence>
-                {portfolioProjects.map((project, index) => (
+                {projects.map((project, index) => (
                   <motion.div
                     key={project.id}
-                    className="group cursor-pointer"
+                    className="group"
                     initial={{ opacity: 0, y: 30 }}
                     animate={isInView ? { opacity: 1, y: 0 } : {}}
                     transition={{ delay: 0.3 + index * 0.1 }}
-                    onClick={() => setSelectedProject(project)}
                   >
                     <div className="bg-white dark:bg-dark-card rounded-2xl border border-light-border dark:border-dark-border overflow-hidden hover:border-accent/50 transition-all hover:shadow-xl">
                       {/* Thumbnail */}
                       <div className="relative aspect-[4/3] overflow-hidden bg-gray-100 dark:bg-dark-bg">
-                        <img
-                          src={project.thumbnail}
-                          alt={project.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
+                        {project.thumbnail_url ? (
+                          <img
+                            src={project.thumbnail_url}
+                            alt={project.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400">
+                            <Eye className="w-12 h-12" />
+                          </div>
+                        )}
 
-                        {/* Hover Overlay */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="px-4 py-2 bg-accent rounded-lg text-white text-sm font-medium flex items-center gap-2">
-                            <Eye className="w-4 h-4" />
-                            View Project
-                          </span>
-                        </div>
 
                         {/* Category Badge */}
                         <div className="absolute top-3 left-3">
@@ -85,6 +86,15 @@ export default function Projects() {
                             {project.category}
                           </span>
                         </div>
+
+                        {/* Featured Badge */}
+                        {project.is_featured && (
+                          <div className="absolute top-3 right-3">
+                            <span className="px-2 py-1 bg-accent rounded-full text-xs font-medium text-white">
+                              Featured
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Content */}
@@ -93,20 +103,13 @@ export default function Projects() {
                           {project.title}
                         </h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mb-3">
-                          {project.description}
+                          {project.description || 'No description'}
                         </p>
 
-                        {/* Tags */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {project.tags.slice(0, 3).map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-2 py-0.5 bg-gray-100 dark:bg-dark-border rounded text-xs text-gray-600 dark:text-gray-400"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                        {/* Category tag */}
+                        <span className="px-2 py-0.5 bg-gray-100 dark:bg-dark-border rounded text-xs text-gray-600 dark:text-gray-400">
+                          {project.category}
+                        </span>
                       </div>
                     </div>
                   </motion.div>
@@ -116,7 +119,7 @@ export default function Projects() {
           )}
 
           {/* View More CTA */}
-          {portfolioProjects.length > 0 && (
+          {projects.length > 0 && (
             <motion.div
               className="text-center mt-12"
               initial={{ opacity: 0 }}
@@ -135,13 +138,8 @@ export default function Projects() {
         </div>
       </section>
 
-      {/* PDF Viewer Modal */}
-      <PDFViewer
-        isOpen={!!selectedProject}
-        onClose={() => setSelectedProject(null)}
-        pdfUrl={selectedProject?.pdfUrl || ''}
-        title={selectedProject?.title || ''}
-      />
+      {/* PDF Viewer Modal - currently disabled as case_study is structured data */}
+      {/* Future: add pdf_url field to projects for PDF support */}
     </>
   )
 }
